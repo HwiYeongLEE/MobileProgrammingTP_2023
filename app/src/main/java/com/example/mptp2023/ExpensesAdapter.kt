@@ -1,8 +1,12 @@
 package com.example.mptp2023
 
+import android.app.Dialog
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.view.Window
+import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.example.mptp2023.databinding.DialogExpenseDetailsBinding
 import com.example.mptp2023.databinding.ItemExpenseBinding
 
 class ExpensesAdapter : RecyclerView.Adapter<ExpensesAdapter.ExpenseViewHolder>() {
@@ -28,9 +32,22 @@ class ExpensesAdapter : RecyclerView.Adapter<ExpensesAdapter.ExpenseViewHolder>(
         notifyDataSetChanged()
     }
 
+    // Modify the ExpensesAdapter to display expense names
     inner class ExpenseViewHolder(private val binding: ItemExpenseBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(expense: Expense) {
-            binding.expenseTextView.text = expense.amount.toString()
+            binding.expenseTextView.text = expense.name
+
+            binding.root.setOnClickListener {
+                val dialog = Dialog(binding.root.context) // Use the context of the activity or view where the ExpensesAdapter is used
+                dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+                val dialogBinding = DialogExpenseDetailsBinding.inflate(LayoutInflater.from(dialog.context))
+                dialog.setContentView(dialogBinding.root)
+                dialog.setCancelable(true)
+
+                dialogBinding.expenseAmountTextView.text = "Amount: ${expense.amount}"
+
+                dialog.show()
+            }
         }
     }
 }
