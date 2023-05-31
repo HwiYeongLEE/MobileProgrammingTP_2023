@@ -66,6 +66,8 @@ class MainActivity : AppCompatActivity() {
                     expensesRef.child(newExpenseKey).setValue(newExpense)
                         .addOnSuccessListener {
                             showToast("데이터가 성공적으로 저장되었습니다!")
+                            // Retrieve expenses for the selected date and update the adapter
+                            retrieveExpensesForDate(currentDate)
                         }
                         .addOnFailureListener { exception ->
                             showToast("데이터 저장에 실패했습니다: ${exception.message}")
