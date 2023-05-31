@@ -15,6 +15,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
 import java.io.File
+import org.json.JSONArray
+import org.json.JSONObject
 
 class ExpensesAdapter : RecyclerView.Adapter<ExpensesAdapter.ExpenseViewHolder>() {
     private val expensesList: MutableList<Expense> = mutableListOf()
@@ -38,8 +40,43 @@ class ExpensesAdapter : RecyclerView.Adapter<ExpensesAdapter.ExpenseViewHolder>(
         expensesList.addAll(expenses)
         notifyDataSetChanged()
     }
-
     // Modify the ExpensesAdapter to display expense names
+    fun formatJsonObject(jsonObject: JSONObject, indent: Int = 0): String {
+        val stringBuilder = StringBuilder()
+        val keys = jsonObject.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            val value = jsonObject[key]
+            val formattedKey = "${indentSpaces(indent)}$key"
+            val formattedValue = when (value) {
+                is JSONObject -> formatJsonObject(value, indent + 1)
+                is JSONArray -> formatJsonArray(value, indent + 1)
+                else -> value.toString()
+            }
+            stringBuilder.append("$formattedKey: $formattedValue\n")
+        }
+        return stringBuilder.toString()
+    }
+
+    // Function to format the JSON array with proper indentation
+    fun formatJsonArray(jsonArray: JSONArray, indent: Int = 0): String {
+        val stringBuilder = StringBuilder()
+        for (i in 0 until jsonArray.length()) {
+            val value = jsonArray[i]
+            val formattedValue = when (value) {
+                is JSONObject -> formatJsonObject(value, indent + 1)
+                is JSONArray -> formatJsonArray(value, indent + 1)
+                else -> value.toString()
+            }
+            stringBuilder.append("${indentSpaces(indent)}$formattedValue\n")
+        }
+        return stringBuilder.toString()
+    }
+
+    // Function to generate spaces for indentation
+    fun indentSpaces(indent: Int): String {
+        return " ".repeat(indent * 4)
+    }
     inner class ExpenseViewHolder(private val binding: ItemExpenseBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(expense: Expense) {
             binding.expenseTextView.text = expense.name
@@ -51,7 +88,11 @@ class ExpensesAdapter : RecyclerView.Adapter<ExpensesAdapter.ExpenseViewHolder>(
                 dialog.setContentView(dialogBinding.root)
                 dialog.setCancelable(true)
 
-                dialogBinding.expenseAmountTextView.text = "Amount: ${expense.amount}"
+                val jsonString:String = expense.amount
+                val jsonObject = JSONObject(jsonString.replace("'", "\""))
+                val formattedJson = formatJsonObject(jsonObject)
+
+                dialogBinding.expenseAmountTextView.text = formattedJson
 
                 // Fetch the image from Firebase Storage and display it in the dialog
                 val storage = Firebase.storage("gs://mptp2023.appspot.com")

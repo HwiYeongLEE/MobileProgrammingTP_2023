@@ -45,13 +45,21 @@ class MainActivity : AppCompatActivity() {
             val imageFileName = photoUri?.lastPathSegment
             // Process the photo using OCR API and handle the JSON response
             // For now, let's assume the API response is {'amount': 1.0}
-            val ocrApiResponse = "{'amount': 1.0}"
+            val ocrApiResponse =
+                "{'menu': {'cnt': '1 x',\n" +
+                    "  'nm': 'CINNAMON SUGAR',\n" +
+                    "  'price': '17,000',\n" +
+                    "  'unitprice': '17,000'},\n" +
+                    " 'sub_total': {'subtotal_price': '17,000'},\n" +
+                    " 'total': {'cashprice': '20,000',\n" +
+                    "  'changeprice': '3,000',\n" +
+                    "  'total_price': '17,000'}}"
             val resObject = JSONObject(ocrApiResponse)
 
             val currentUser = auth.currentUser
             val expensesRef = database.child("expenses").child(currentUser!!.uid).child(currentDate)
             val newExpenseKey = expensesRef.push().key
-            val newExpense = Expense(amount = resObject.getDouble("amount"), name = imageFileName ?: "Default Name", key = newExpenseKey.toString())
+            val newExpense = Expense(amount = resObject.toString(), name = imageFileName ?: "Default Name", key = newExpenseKey.toString())
 
             if (currentUser != null) {
                 if (newExpenseKey != null) {
@@ -103,7 +111,7 @@ class MainActivity : AppCompatActivity() {
                     val expensesList = mutableListOf<Expense>()
                     for (expenseSnapshot in dataSnapshot.children) {
                         val expenseName = expenseSnapshot.child("name").getValue(String::class.java)
-                        val expenseAmount = expenseSnapshot.child("amount").getValue(Double::class.java)
+                        val expenseAmount = expenseSnapshot.child("amount").getValue(String::class.java)
                         val expenseKey = expenseSnapshot.key
                         if (expenseName != null && expenseAmount != null && expenseKey != null) {
                             expensesList.add(Expense(name = expenseName, amount = expenseAmount, key = expenseKey))
