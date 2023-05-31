@@ -7,7 +7,7 @@
     android:background="@color/white">
 
     <EditText
-        android:id="@+id/emailEditText"
+        android:id="@+id/signupEmailEditText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="이메일 주소"
@@ -16,7 +16,7 @@
         android:layout_marginBottom="16dp" />
 
     <EditText
-        android:id="@+id/passwordEditText"
+        android:id="@+id/signupPasswordEditText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="비밀번호"
@@ -25,21 +25,13 @@
         android:layout_marginBottom="32dp" />
 
     <Button
-        android:id="@+id/loginButton"
+        android:id="@+id/signupButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:backgroundTint="#3949AB"
         android:padding="16dp"
-        android:text="로그인"
+        android:text="회원가입"
         android:textColor="@android:color/white" />
 
-    <TextView
-        android:id="@+id/signupTextView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="아직 계정이 없으신가요? 회원가입"
-        android:textAlignment="center" />
-
 </LinearLayout>
-

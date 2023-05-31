@@ -41,20 +41,18 @@ class MainActivity : AppCompatActivity() {
             //val photoUri = result.data?.data
             //지금은 테스트를 위해 로컬의 이미지파일을 사용합니다.
             val packageName = BuildConfig.APPLICATION_ID
-            val photoUri = Uri.parse("android.resource://$packageName/${com.example.mptp2023.R.drawable.my_image}")
+            val photoUri = Uri.parse("android.resource://$packageName/${com.example.mptp2023.R.drawable.sample}")
+            val imageFileName = photoUri?.lastPathSegment
             // Process the photo using OCR API and handle the JSON response
             // For now, let's assume the API response is {'amount': 1.0}
             val ocrApiResponse = "{'amount': 1.0}"
             val resObject = JSONObject(ocrApiResponse)
 
-
-
             val currentUser = auth.currentUser
             val expensesRef = database.child("expenses").child(currentUser!!.uid).child(currentDate)
             val newExpenseKey = expensesRef.push().key
-            val newExpense = Expense(amount = resObject.getDouble("amount"), name = "john", key = newExpenseKey.toString())
-            Log.d("iise!", "${newExpense}")
-            Log.d("iise!", "${newExpense.key}")
+            val newExpense = Expense(amount = resObject.getDouble("amount"), name = imageFileName ?: "Default Name", key = newExpenseKey.toString())
+
             if (currentUser != null) {
                 if (newExpenseKey != null) {
                     expensesRef.child(newExpenseKey).setValue(newExpense)
@@ -208,7 +206,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.logoutButton.setOnClickListener {
             auth.signOut()
-            showToast("Logged out successfully!")
+            showToast("성공적으로 로그아웃하였습니다!")
             val intent = Intent(this, LoginActivity::class.java)
             startActivity(intent)
             finish()
@@ -220,7 +218,7 @@ class MainActivity : AppCompatActivity() {
                 startActivity(intent)
             }
             else {
-                showToast("You're logged in already!")
+                showToast("이미 로그인 되어 있습니다!")
             }
         }
     }

@@ -81,6 +81,7 @@ class ExpensesAdapter : RecyclerView.Adapter<ExpensesAdapter.ExpenseViewHolder>(
                         }
                 } else {
                     // Handle user not logged in here
+
                 }
             }
         }
