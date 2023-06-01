@@ -6,13 +6,13 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
-import android.util.Log
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.net.toFile
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
@@ -22,11 +22,22 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.FirebaseStorage
-import com.google.firebase.storage.StorageReference
 import com.google.firebase.storage.ktx.storage
+import org.json.JSONException
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.*
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.IOException
+import android.content.ContentResolver
+import android.content.Context
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.concurrent.TimeUnit
+
 
 class MainActivity : AppCompatActivity() {
     private lateinit var auth: FirebaseAuth
@@ -34,32 +45,80 @@ class MainActivity : AppCompatActivity() {
     private lateinit var expensesAdapter: ExpensesAdapter
     private lateinit var storage: FirebaseStorage
 
+    private fun getRequestBodyFromUri(context: Context, uri: Uri): RequestBody {
+        val contentResolver: ContentResolver = context.contentResolver
+        return try {
+            val inputStream = contentResolver.openInputStream(uri)
+            val mediaType = contentResolver.getType(uri)?.toMediaTypeOrNull()
+            inputStream?.use {
+                it.readBytes().toRequestBody(mediaType)
+            } ?: throw IllegalArgumentException("Failed to open InputStream from Uri: $uri")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw IllegalArgumentException("Failed to create RequestBody from Uri: $uri", e)
+        }
+    }
+    private fun sendPhotoWithApi(photoUri: Uri) {
+        val url = "http://34.64.38.205:5000/process_invoice" // API 엔드포인트 URL
 
-    private val takePicture = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
+        val client = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS) // Set the connection timeout
+            .readTimeout(30, TimeUnit.SECONDS) // Set the read timeout
+            .writeTimeout(30, TimeUnit.SECONDS) // Set the write timeout
+            .build()
+
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart(
+                "invoice_photo",
+                "invoice_photo.jpg",
+                getRequestBodyFromUri(this, photoUri)
+            )
+            .build()
+
+        val request = Request.Builder()
+            .url(url)
+            .post(requestBody)
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onResponse(call: Call, response: Response) {
+                val responseBody = response.body?.string()
+                // 응답 처리
+                handleApiResponse(responseBody, photoUri)
+            }
+
+            override fun onFailure(call: Call, e: IOException) {
+                // 오류 처리
+                showToast("API 요청 실패: ${e.message}")
+            }
+        })
+    }
+
+
+
+    private fun handleApiResponse(response: String?, photoUri: Uri) {
+        try {
+            val ocrApiResponse = JSONObject(response)
+            showToast(ocrApiResponse.toString())
             val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            //val photoUri = result.data?.data
-            //지금은 테스트를 위해 로컬의 이미지파일을 사용합니다.
-            val packageName = BuildConfig.APPLICATION_ID
-            val photoUri = Uri.parse("android.resource://$packageName/${com.example.mptp2023.R.drawable.sample}")
             val imageFileName = photoUri?.lastPathSegment
             // Process the photo using OCR API and handle the JSON response
             // For now, let's assume the API response is {'amount': 1.0}
-            val ocrApiResponse =
-                "{'menu': {'cnt': '1 x',\n" +
-                    "  'nm': 'CINNAMON SUGAR',\n" +
-                    "  'price': '17,000',\n" +
-                    "  'unitprice': '17,000'},\n" +
-                    " 'sub_total': {'subtotal_price': '17,000'},\n" +
-                    " 'total': {'cashprice': '20,000',\n" +
-                    "  'changeprice': '3,000',\n" +
-                    "  'total_price': '17,000'}}"
-            val resObject = JSONObject(ocrApiResponse)
+//            val ocrApiResponse =
+//                "{'menu': {'cnt': '1 x',\n" +
+//                        "  'nm': 'CINNAMON SUGAR',\n" +
+//                        "  'price': '17,000',\n" +
+//                        "  'unitprice': '17,000'},\n" +
+//                        " 'sub_total': {'subtotal_price': '17,000'},\n" +
+//                        " 'total': {'cashprice': '20,000',\n" +
+//                        "  'changeprice': '3,000',\n" +
+//                        "  'total_price': '17,000'}}"
 
             val currentUser = auth.currentUser
             val expensesRef = database.child("expenses").child(currentUser!!.uid).child(currentDate)
             val newExpenseKey = expensesRef.push().key
-            val newExpense = Expense(amount = resObject.toString(), name = imageFileName ?: "Default Name", key = newExpenseKey.toString())
+            val newExpense = Expense(amount = ocrApiResponse.toString(), name = imageFileName ?: "Default Name", key = newExpenseKey.toString())
 
             if (currentUser != null) {
                 if (newExpenseKey != null) {
@@ -101,6 +160,26 @@ class MainActivity : AppCompatActivity() {
             } else {
                 showToast("사진 URI를 가져오지 못했습니다")
             }
+        } catch (e: JSONException) {
+            showToast("API 응답 처리 중 오류가 발생했습니다.")
+        }
+    }
+
+
+    private val takePicture = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            //val photoUri = result.data?.data
+            //지금은 테스트를 위해 로컬의 이미지파일을 사용합니다.
+            val packageName = BuildConfig.APPLICATION_ID
+            val photoUri = Uri.parse("android.resource://$packageName/${com.example.mptp2023.R.drawable.sample}")
+            // Process the photo using OCR API and handle the JSON response
+            // For now, let's assume the API response is {'amount': 1.0}
+
+            if (photoUri != null) {
+                sendPhotoWithApi(photoUri)
+            } else {
+                showToast("사진 URI를 가져오지 못했습니다.")
+            }
         }
     }
 
@@ -130,9 +209,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var binding: ActivityMainBinding
-
     private fun showToast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        runOnUiThread {
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
